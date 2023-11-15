@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞线效果</title>
+    <style>
+        body {
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+    <script type="module">
+
+        import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js'
+        import * as BufferGeometryUtils from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/utils/BufferGeometryUtils.js'
+        import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/controls/OrbitControls.js'
+        let scene, camera, renderer, controls, mixer, tubeCurve, AgvCar;
+        let width = window.innerWidth;
+        let height = window.innerHeight
+
+        let ratio = {
+            value: 0
+        }
+
+        // 飞线效果的相关配置数据
+        const flyData = [{
+            start: {  //起始点位置
+                x: 0,
+                y: 0,
+                z: 0
+            },
+            end: { // 结束点位置
+                x: -350,
+                y: 0,
+                z: 0
+            },
+            range: 180, // 飞线长度
+            height: 120, // 轨迹的高度
+            color: '#e4393c', // 颜色
+            speed: 1, // 速度
+            size: 10 // 飞线点点的大小
+        }, {
+            start: {  //起始点位置
+                x: 0,
+                y: 0,
+                z: 0
+            },
+            end: { // 结束点位置
+                x: 250,
+                y: 0,
+                z: 0
+            },
+            range: 180, // 飞线长度
+            height: 180, // 轨迹的高度
+            color: '#ff0000', // 颜色
+            speed: 1, // 速度
+            size: 10 // 飞线点点的大小
+        }]
+        function init() {
+            // 场景
+            scene = new THREE.Scene();
+            let helper = new THREE.AxesHelper(100, 100);
+            scene.add(helper);
+
+            // 环境光
+            let light = new THREE.AmbientLight(0xadadad); // soft white light
+            scene.add(light);
+
+            // 平行光源
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(100, 100, 0);
+            scene.add(directionalLight);
+
+            // 相机
+            camera = new THREE.PerspectiveCamera(35, width / height, 1, 100000)
+            camera.position.set(30, 32, 260)
+            scene.add(camera)
+
+            // 渲染器
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(width, height)
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(new THREE.Color('#32373E'), 1);
+            document.body.appendChild(renderer.domElement);
+            const vertexShader = `
+                    // 从JavaScript接收attribute值，经过线性插值
+                    attribute float current;
+
+                    // 从JavaScript接收uniform值
+                    uniform float uSize;
+                    uniform float uTime;
+                    uniform vec3 uColor;
+                    uniform float uRange;
+                    uniform float uTotal;
+                    uniform float uSpeed;
+
+                    // 向片元着色器传递颜色和透明度值
+                    varying vec3 vcolor;
+                    varying float vopacity;
+
+                    void main () {
+                        float size = uSize;
+
+                        // 根据uTotal、uTime和uSpeed计算随时间变化的动态值
+                        float currentEnd = uTotal * fract(uTime * uSpeed);
+
+                        // 检查当前像素点是否在飞线范围内
+                        if (current < currentEnd && current > currentEnd - uRange) {
+                            // 使用渐变效果（头大尾小）设置尺寸和透明度
+                            float sizePct = (uRange - (currentEnd - current)) / uRange;
+                            size *= sizePct;
+                            vopacity = 1.0;
+                        } else {
+                            vopacity = 0.0;
+                        }
+
+                        // 将颜色传递给片元着色器
+                        vcolor = uColor;
+
+                        // 设置点的大小，范围在[0..1]之间，缩放因子为0.4
+                        gl_PointSize = size * 0.6;
+
+                        // 使用投影矩阵和模型视图矩阵设置位置
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+`;
+
+            const fragmentShader = `
+                precision mediump float;
+                varying float vopacity;
+                varying vec3 vcolor;
+
+                void main () {
+                    gl_FragColor = vec4(vcolor, vopacity);
+                }
+        `;
+
+            // 创建飞线
+            flyData.forEach(item => {
+                initFly(item);
+            });
+
+            function initFly(options) {
+                // 接收传入的参数
+                const {
+                    start,
+                    end,
+                    height,
+                    size,
+                    color,
+                    range,
+                    speed
+                } = options;
+                // 起点位置
+                const _start = new THREE.Vector3(start.x, start.y, start.z);
+                // 结束点位置
+                const _end = new THREE.Vector3(end.x, end.y, end.z);
+                // 计算中建点位置
+                /* lerp方法的用法： 在该向量与传入的向量v之间的线性插值，
+                    alpha是沿着线的长度的百分比 —— alpha = 0 时表示的是当前向量，
+                    alpha = 1 时表示的是所传入的向量v。
+    
+                    此处传入 0.5 返回得是中间点位置
+                **/
+                const _center = _start.clone().lerp(_end, 0.5);
+                // 把中间点的位置沿着y轴方向向上移动 height 距离
+                _center.y += height;
+                // 计算起点到终点间点的个数
+                const number = parseInt(_start.distanceTo(_center) + _end.distanceTo(_center));
+                // 创建一条平滑的三维 二次贝塞尔曲线， 由起点、终点和一个控制点所定义
+                const curve = new THREE.QuadraticBezierCurve3(
+                    _start,
+                    _center,
+                    _end
+                );
+                // 将curve分成 number-1 段；得到number个点；存入数组points 中
+                const points = curve.getPoints(number);
+                // 申明变量用于存点的信息
+                const positions = [];
+                // 申明变量用于存点的索引信息
+                const current = [];
+                // 遍历点数组，将索引存入current， 将点的x,y,z展开，存入positions数组
+                points.forEach((item, index) => {
+                    positions.push(
+                        item.x,
+                        item.y,
+                        item.z
+                    );
+                    current.push(index);
+                });
+
+                // 创建BufferGeometry 并把positions和current传给对应的attribute属性，供顶点着色器使用
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('current', new THREE.Float32BufferAttribute(current, 1));
+                // 创建shader材质
+                const material = new THREE.ShaderMaterial({
+                    transparent: true,
+                    depthWrite: false,
+                    depthTest: false,
+                    blending: THREE.AdditiveBlending,
+                    uniforms: {
+                        uSize: { // 点的大小
+                            value: size
+                        },
+                        uTime: ratio, // 时间
+                        uColor: { // 颜色
+                            value: new THREE.Color(color)
+                        },
+                        uRange: { // 飞线长度
+                            value: range
+                        },
+                        uTotal: { // 轨迹总长度，（点的总个数）
+                            value: number
+                        },
+                        uSpeed: { // 飞行速度
+                            value: speed
+                        }
+                    },
+                    vertexShader,
+                    fragmentShader
+                });
+                // 创建并添加到场景中
+                const flyPoints = new THREE.Points(geometry, material);
+                scene.add(flyPoints);
+            }
+
+
+
+            let next = 0;
+            render();
+            function render() {
+                next += 0.01
+                ratio.value = next;
+
+                requestAnimationFrame(render);
+                renderer.render(scene, camera);
+            }
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+        }
+        window.onload = init
+    </script>
+
+</body>
+
+</html>

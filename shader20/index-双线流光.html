@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>shader实现道路流光效果</title>
+    <style>
+        body {
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+    
+
+</head>
+<body>
+  <script type="module">
+
+    import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js'
+    import * as BufferGeometryUtils from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/utils/BufferGeometryUtils.js'
+    import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/controls/OrbitControls.js'
+    let scene, camera, renderer, controls, mixer, tubeCurve, AgvCar;
+    let width = window.innerWidth;
+    let height = window.innerHeight
+
+    let ratio = {
+        value: 0
+    }
+
+    function init () {
+        scene = new THREE.Scene();
+
+        // 环境光
+        let light = new THREE.AmbientLight(0xadadad); // soft white light
+        scene.add(light);
+
+    
+
+        // 相机
+        camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000)
+        camera.position.set(400, 520, 760)
+        scene.add(camera)
+
+        // 渲染器
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(width, height)
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(new THREE.Color('#32373E'), 1);
+        document.body.appendChild(renderer.domElement);
+
+        function randWidth (width) {
+            return Math.random() * width + 10;
+        }
+
+        // 创建地板
+        const planeGeo = new THREE.PlaneGeometry(1900, 1900);
+        const planeMaterial = new THREE.MeshLambertMaterial({
+            color: new THREE.Color('#042750')
+        });
+        const planeMesh = new THREE.Mesh(planeGeo, planeMaterial);
+        planeMesh.rotation.x = -Math.PI / 2;
+        // scene.add(planeMesh);
+
+        // 道路的点数据
+        // 分为内圈，外圈
+        const pointArr = [
+            220, -220, 0,
+            220, 220, 0,
+
+            220, 220, 0,
+            -220, 100, 0,
+
+            -220, 100, 0,
+            -220, -220, 0,
+
+            -220, -220, 0,
+            220, -220, 0,
+
+
+            200, -200, 0,
+            -200, -200, 0,
+
+            -200, -200, 0,
+            -200, 80, 0,
+
+            -200, 80, 0,
+            200, 190, 0,
+
+            200, 190, 0,
+            200, -200, 0,
+        ];
+
+        // 流光配置数据
+        const flyConf = {
+            range: 120, // 飞线长度
+            color: '#fcfc55', // 颜色
+            speed: 80, // 速度
+            size: 14 // 飞线点点的大小
+        };
+
+        const vertexShader =  `
+            // 接收js传入的attribute值，会经过线性插值
+            attribute float current;
+
+            // 接收js传入的uniform值
+            uniform float uSize;
+            uniform float uTime;
+            uniform float uRange;
+            uniform float uTotal;
+            uniform float uSpeed;
+
+            // 向片元着色器传值颜色和透明度
+            varying float vopacity;
+
+            void main () {
+                float size = uSize;
+                // 根据时间确定当前飞线的位置， 以结束点为准
+                float currentEnd = mod(uTime * uSpeed, uTotal);
+                // 判断当前像素点是否在飞线范围内，如果在范围内设置尺寸和透明度
+                if (current < currentEnd && current > currentEnd - uRange) {
+                    // 设置渐变的尺寸，头大尾小
+                    float sizePct = (uRange - (currentEnd - current)) / uRange;
+                    // size *= sizePct;
+                    vopacity = clamp(1.0 * sizePct, 0.2, 1.0);
+                } else if(current < currentEnd - uRange){
+                    vopacity = 0.0;
+                } else {
+                    vopacity = 0.0;
+                }
+                // 将颜色传递给片元着色器
+                // 设置点的大小
+                gl_PointSize = size * 0.4;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+        const fragmentShader =  `
+            precision mediump float;
+            // 接收顶点着色器传入的值
+            varying float vopacity;
+            uniform vec3 uColor;
+
+            void main () {
+                gl_FragColor = vec4(uColor, vopacity);
+            }
+        `;
+        
+        const pointsArr1 = [];
+        const pointsArr2 = [];
+
+        for (let i=0; i<pointArr.length; i+=6) {
+            if (i < 24) {
+                pointsArr1.push(new THREE.Vector2( pointArr[i], pointArr[i + 1] ));
+            } else {
+                pointsArr2.push(new THREE.Vector2( pointArr[i], pointArr[i + 1] ));
+            }
+
+            let start = new THREE.Vector3(
+                pointArr[i],
+                pointArr[i + 1],
+                pointArr[i + 2]
+            );
+
+            let end = new THREE.Vector3(
+                pointArr[i + 3],
+                pointArr[i + 4],
+                pointArr[i + 5]
+            );
+
+            const curve = new THREE.LineCurve3(start, end);
+            const number = start.distanceTo(end);
+
+            const points = curve.getPoints(number);
+            const positions = [];
+            const current = [];
+            points.forEach((item, index) => {
+                current.push(index);
+                positions.push(
+                    item.x,
+                    item.y,
+                    item.z
+                );
+            });
+
+            const flyGeo = new THREE.BufferGeometry();
+            flyGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            flyGeo.setAttribute('current', new THREE.Float32BufferAttribute(current, 1));
+
+            const flyMaterial = new THREE.ShaderMaterial({
+                transparent: true,
+                depthWrite: false,
+                depthTest: false,
+                // blending: THREE.AdditiveBlending,
+                uniforms: {
+                    uSize: { // 点的大小
+                        value: flyConf.size
+                    },
+                    uTime: ratio, // 时间
+                    uColor: { // 颜色
+                        value: new THREE.Color(flyConf.color)
+                    },
+                    uRange: { // 飞线长度
+                        value: flyConf.range
+                    },
+                    uTotal: { // 轨迹总长度，（点的总个数）
+                        value: number
+                    },
+                    uSpeed: { // 飞行速度
+                        value: flyConf.speed
+                    }
+                },
+                vertexShader,
+                fragmentShader
+            });
+            // 创建并添加到场景中
+            const flyPoints = new THREE.Points(flyGeo, flyMaterial);
+            scene.add(flyPoints);
+
+            // ShapeGeometry 绘制路面
+            const heartShape = new THREE.Shape();
+        }
+
+        var shape = new THREE.Shape(pointsArr1);
+
+        let holePath = new THREE.Path(pointsArr2);
+        shape.holes.push(holePath);
+        
+        var geometry1 = new THREE.ShapeGeometry(shape);
+        var material1 = new THREE.MeshPhongMaterial({
+            color: new THREE.Color('#215080'),
+            side: THREE.DoubleSide
+        });
+        var mesh1 = new THREE.Mesh(geometry1, material1);
+        scene.add(mesh1);
+
+        addClick();
+        function addClick () {
+            var raycaster = new THREE.Raycaster();//光线投射，用于确定鼠标点击位置
+            var mouse = new THREE.Vector2();//创建二维平面
+            window.addEventListener("mousedown",mousedown);//页面绑定鼠标点击事件
+            //点击方法
+            function mousedown(e){
+                //将html坐标系转化为webgl坐标系，并确定鼠标点击位置
+                mouse.x =  e.clientX / renderer.domElement.clientWidth*2-1;
+                mouse.y =  -(e.clientY / renderer.domElement.clientHeight*2)+1;
+                //以camera为z坐标，确定所点击物体的3D空间位置
+                raycaster.setFromCamera(mouse,camera);
+                //确定所点击位置上的物体数量
+                var intersects = raycaster.intersectObjects(scene.children);
+                //选中后进行的操作
+                if(intersects.length){
+                    setSelected(intersects[0].object);
+                }
+            }
+        }
+
+        let selectedMeshArr = null;
+        function setSelected (obj) {
+            // 判断选中的对象是否是建筑块儿，如果是则修改其uniforms中的u_selected值
+            if (obj.isBuild) {
+                obj.material.uniforms.u_selected.value = 1;
+                if (selectedMeshArr) {
+                    // 清除历史选中
+                    selectedMeshArr.material.uniforms.u_selected.value = 0;
+                }
+                selectedMeshArr = obj;
+            }
+        }
+    
+        let next = 0;
+        render();
+        function render () {
+            next += 0.12
+            ratio.value = next;
+
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
+        controls = new OrbitControls(camera, renderer.domElement);
+    }
+    window.onload = init
+</script>
+    
+</body>
+</html>
