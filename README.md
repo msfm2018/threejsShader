@@ -31,10 +31,16 @@ floor(3.14) 的结果是 3。
 
 floor(-3.14) 的结果是 -4。
 
-y = mod(x,0.5); // 返回 x 对 0.5 取模的值 //y = fract(x); // 仅仅返回数的小数部分 //y = ceil(x);  // 向正无穷取整
+y = mod(x,0.5);  返回 x 对 0.5 取模的值            y = fract(x); 仅仅返回数的小数部分    y = ceil(x); 向正无穷取整
 
-//y = floor(x); // 向负无穷取整  //y = sign(x);  // 提取 x 的正负号  //y = abs(x);   // 返回 x 的绝对值
+y = floor(x); 向负无穷取整                         y = sign(x);  提取 x 的正负号         y = abs(x); 返回 x 的绝对值
 
-//y = clamp(x,0.0,1.0); // 把 x 的值限制在 0.0 到 1.0  //y = min(0.0,x);   // 返回 x 和 0.0 中的较小值
+y = clamp(x,0.0,1.0); 把 x 的值限制在 0.0 到 1.0    y = min(0.0,x) 返回 x 和 0.0 中的较小值
 
-//y = max(0.0,x);   // 返回 x 和 0.0 中的较大值  
+y = max(0.0,x); 返回 x 和 0.0 中的较大值  
+
+.x, .y, .z也可以被写作.r, .g, .b 和 .s, .t, .p  vec4 vector;
+vector[0] = vector.r = vector.x = vector.s;
+vector[1] = vector.g = vector.y = vector.t;
+vector[2] = vector.b = vector.z = vector.p;
+vector[3] = vector.a = vector.w = vector.q;
