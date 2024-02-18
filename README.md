@@ -48,3 +48,6 @@ vector[2] = vector.b = vector.z = vector.p;
 
 vector[3] = vector.a = vector.w = vector.q;
 ![image](https://github.com/msfm2018/threejsShader/assets/43517405/b8596cf9-f207-43a5-ade4-1780e636f190)
+
+mix线性插值 mix(x, y, a) 如果 a 为 0，则结果为 x  如果 a 为 1，则结果为 y。 如果 a 在 0 到 1 之间，则结果将在 x 和 y 之间进行线性插值，权重为 a
+![image](https://github.com/msfm2018/threejsShader/assets/43517405/5b3f1704-585c-495b-a011-af7489d6f7e9)
