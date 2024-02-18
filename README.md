@@ -39,8 +39,12 @@ y = clamp(x,0.0,1.0); 把 x 的值限制在 0.0 到 1.0    y = min(0.0,x) 返回
 
 y = max(0.0,x); 返回 x 和 0.0 中的较大值  
 
-.x, .y, .z也可以被写作.r, .g, .b 和 .s, .t, .p  vec4 vector;
-vector[0] = vector.r = vector.x = vector.s;
-vector[1] = vector.g = vector.y = vector.t;
-vector[2] = vector.b = vector.z = vector.p;
+.x, .y, .z也可以被写作.r, .g, .b 和 .s, .t, .p 
+vec4 vector;   vector[0] = vector.r = vector.x = vector.s;   
+
+vector[1] = vector.g = vector.y = vector.t;   
+
+vector[2] = vector.b = vector.z = vector.p;   
+
 vector[3] = vector.a = vector.w = vector.q;
+![image](https://github.com/msfm2018/threejsShader/assets/43517405/b8596cf9-f207-43a5-ade4-1780e636f190)
