@@ -51,3 +51,6 @@ vector[3] = vector.a = vector.w = vector.q;
 
 mix线性插值 mix(x, y, a) 如果 a 为 0，则结果为 x  如果 a 为 1，则结果为 y。 如果 a 在 0 到 1 之间，则结果将在 x 和 y 之间进行线性插值，权重为 a
 ![image](https://github.com/msfm2018/threejsShader/assets/43517405/5b3f1704-585c-495b-a011-af7489d6f7e9)
+在Three.js中，内积（也称为点积）通常是使用dot()方法来计算的![image](https://github.com/msfm2018/threejsShader/assets/43517405/e9489d0c-fcfc-4697-afd0-2850dc3668c0)
+![image](https://github.com/msfm2018/threejsShader/assets/43517405/9db7feff-9f11-4ee9-98ed-975dea8bfed9)![image](https://github.com/msfm2018/threejsShader/assets/43517405/45e67a37-87aa-4f86-9032-6f7d64716e38)
+
