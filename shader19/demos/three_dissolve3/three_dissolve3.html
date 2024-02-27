@@ -24,7 +24,7 @@
     varying vec3 worldPos;
     void main() {
         vUv = uv;
-        worldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        worldPos = (modelViewMatrix * vec4(position, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   </script>
@@ -44,9 +44,7 @@
       float yScale = (worldPos.y - bottom)/(top - bottom);
    
       vec4 color = texture2D( texture2, vUv);
-      //vec4 color = vec4(1.0, 0.0, 0.0, 0.3);
-      
-      //float t = 1. - fract(time);
+
       float t;
       if(flag) {
         t = fract(time);
@@ -54,14 +52,14 @@
         t = 1. - fract(time);
       }
       
-      float h = texture2D( dissolveMap, vUv).r;
+      float h = texture2D( dissolveMap, vUv).y;
   
-      float dissolveWidth = 4.0; // 值越大越窄
+      float vh = 8.0; // 值越大越窄
 
-      float condition_if_1 = step(h + yScale*dissolveWidth, t*(dissolveWidth + 1.0) + 0.04);
-      float condition_if_2 = step(h + yScale*dissolveWidth, t*(dissolveWidth + 1.0));
-      color = mix(color, vec4(1.0 ,1.0 , 0.0, 1.0), condition_if_1 );
-      color = color * (1. - condition_if_2);
+
+      float f = step(h + yScale * vh, t* vh );
+  
+      color = color * (1. - f);
       
       gl_FragColor = color;
     }
