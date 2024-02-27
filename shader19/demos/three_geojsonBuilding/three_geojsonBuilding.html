@@ -35,15 +35,18 @@
         uniform float innerCircleWidth;
         uniform float circleWidth;
         uniform float opacity;
-        uniform vec3 center;
+   
         
         uniform vec3 color;
         uniform sampler2D texture;
 
+        vec2 v1;
         void main() {
-            float dis = length(v_position - center);
+
+            float dis = length(v_position);
             if(dis < (innerCircleWidth + circleWidth) && dis > innerCircleWidth) {
-                float r = (dis - innerCircleWidth) / circleWidth;
+              
+                float r = max((dis - innerCircleWidth) / circleWidth, 0.0);
                 vec4 tex = texture2D( texture, vUv);
                 gl_FragColor = mix(tex, vec4(color, opacity), r);
             }else {
@@ -68,13 +71,14 @@
         uniform float innerCircleWidth;
         uniform float circleWidth;
         uniform float opacity;
-        uniform vec3 center;
-        
+ 
+
         uniform vec3 color;
         uniform vec3 diff;
 
         void main() {
-            float dis = length(v_position - center);
+          
+            float dis = length(v_position );
             if(dis < (innerCircleWidth + circleWidth) && dis > innerCircleWidth) {
                 float r = (dis - innerCircleWidth) / circleWidth;
                
@@ -168,9 +172,7 @@
                     opacity: {
                         value: 0.9
                     },
-                    center: {
-                        value: new THREE.Vector3(0, 0, 0)
-                    }
+                   
                 },
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
@@ -195,9 +197,7 @@
                     opacity: {
                         value: 0.3
                     },
-                    center: {
-                        value: new THREE.Vector3(0, 0, 0)
-                    }
+                  
                 },
                 vertexShader: document.getElementById( 'ground_vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'ground_fragmentShader' ).textContent,
