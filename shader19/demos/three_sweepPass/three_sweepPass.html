@@ -80,7 +80,9 @@
       }
 
       var renderScene = new THREE.RenderPass( scene, camera )
-      sweepPass = new THREE.SweepPass(scene, camera)
+
+      sweepPass = new SweepPass(scene, camera);
+      
       composer = new THREE.EffectComposer( renderer );
       let scale = window.devicePixelRatio * 2 // 用于弥补后处理带来的图像精度损失
       composer.setSize( window.innerWidth * scale, window.innerHeight * scale );
